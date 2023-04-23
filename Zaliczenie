@@ -1,0 +1,78 @@
+import datetime
+
+
+def generuj_raport(logi):
+
+    raport = {
+        "wadliwe_logi": [],
+        "procent_wadliwych_logow": "100.0",
+        "czas_trwania_raportu": 0,
+        "temperatura": {
+            "max": None,
+            "min": None,
+            "srednia": None
+        },
+        "najdluzszy_czas_przegrzania": 0,
+        "liczba_okresow_przegrzania": 0,
+        "problemy": {
+            "wysoki_poziom_zaklocen_EM": False,
+            "wysokie_ryzyko_uszkodzenia_silnika_z_powodu_temperatury": False
+        }
+    }
+
+    wadliwe_logi = []
+    temperatura_suma = 0
+    temperatura_min = None
+    temperatura_max = None
+    przegrzanie_czas = 0
+    przegrzanie_okresy = 0
+    czas_trwania_raportu = 0
+    liczba_linii = 0
+    liczba_wadliwych_linii = 0
+    liczba_linii_EM = 0
+
+    with open(logi) as plik:
+        for linia in plik:
+            try:
+                data_czas, temperatura = linia.strip().split(' ')
+                temperatura = float(temperatura[:-1])  # Usunięcie litery C na końcu temperatury
+                data_czas = datetime.datetime.strptime(data_czas + ' ' + temperatura, '%Y-%m-%d %H:%M')
+            except (ValueError, IndexError):
+                wadliwe_logi.append(linia.strip())
+                liczba_wadliwych_linii += 1
+                continue
+
+            if temperatura < 0 or temperatura > 100:
+                wadliwe_logi.append(linia.strip())
+                liczba_wadliwych_linii += 1
+                continue
+
+            if temperatura_min is None or temperatura < temperatura_min:
+                temperatura_min = temperatura
+            if temperatura_max is None or temperatura > temperatura_max:
+                temperatura_max = temperatura
+            temperatura_suma += temperatura
+
+            if "EM" in linia:
+                liczba_linii_EM += 1
+
+            if temperatura > 90:
+                przegrzanie_czas += 1
+            else:
+                if przegrzanie_czas > 0:
+                    przegrzanie_okresy += 1
+                przegrzanie_czas = 0
+
+            liczba_linii += 1
+
+        if liczba_linii > 0:
+            pierwsza_linia = datetime.datetime.strptime(pierwsza_linia.split(' ')[0], '%Y-%m-%d')
+            ostatnia_linia = datetime.datetime.strptime(ostatnia_linia.split(' ')[0], '%Y-%m-%d')
+            czas_trwania_raportu = (ostatnia_linia - pierwsza_linia).days
+
+        if wadliwe_logi:
+            raport += f'Wadliwe logi:\n'
+            for log in wadliwe_logi:
+                raport += f'{log}\n'
+
+        return raport
